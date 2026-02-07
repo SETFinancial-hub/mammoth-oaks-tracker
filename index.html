@@ -179,7 +179,7 @@
                         <i data-lucide="check-circle" class="w-4 h-4 text-purple-400"></i>
                         RECENTLY APPROVED (COMING SOON)
                     </h2>
-                    <p class="text-xs text-slate-500 mb-2">These rezonings were approved in the last 12 months - development is likely underway or imminent.</p>
+                    <p class="text-xs text-slate-500 mb-2">These rezonings were approved in the last 2 years - development is likely underway or imminent.</p>
                     <div id="approved-overview" class="space-y-3">
                         <div class="loading-shimmer h-24 rounded-lg"></div>
                     </div>
@@ -690,10 +690,10 @@
         }
 
         async function fetchApprovedRezonings() {
-            // Fetch rezonings approved in the last 12 months
-            const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+            // Fetch rezonings approved in the last 24 months (developments take years to complete)
+            const twoYearsAgo = Date.now() - (730 * 24 * 60 * 60 * 1000);
             const params = new URLSearchParams({
-                where: `Status = 'App' AND Approved >= ${oneYearAgo}`,
+                where: `Status = 'App' AND Approved >= ${twoYearsAgo}`,
                 outFields: '*',
                 f: 'json',
                 returnGeometry: 'true',
@@ -1150,7 +1150,7 @@
             } else if (currentFilter === 'approved') {
                 filtered = approvedRezonings;
                 total = approvedRezonings.length;
-                countLabel = 'approved (last 12 months)';
+                countLabel = 'approved (last 2 years)';
             }
 
             document.getElementById('rezoning-count').textContent = `${filtered.length} ${countLabel}`;
@@ -1619,7 +1619,7 @@ Mammoth Oaks/Lansdowne Neighborhood
                 const features = await fetchRezonings();
                 allRezonings = await processRezonings(features);
 
-                // Fetch approved rezonings (last 12 months)
+                // Fetch approved rezonings (last 2 years)
                 const approvedFeatures = await fetchApprovedRezonings();
                 approvedRezonings = await processApprovedRezonings(approvedFeatures);
 
