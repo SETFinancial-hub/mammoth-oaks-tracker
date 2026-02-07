@@ -690,10 +690,12 @@
         }
 
         async function fetchApprovedRezonings() {
-            // Fetch rezonings approved in the last 24 months (developments take years to complete)
-            const twoYearsAgo = Date.now() - (730 * 24 * 60 * 60 * 1000);
+            // Fetch rezonings approved in the last 2 years (developments take years to complete)
+            // Use DATE format for ArcGIS API compatibility
+            const twoYearsAgo = new Date(Date.now() - (730 * 24 * 60 * 60 * 1000));
+            const dateStr = twoYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
             const params = new URLSearchParams({
-                where: `Status = 'App' AND Approved >= ${twoYearsAgo}`,
+                where: `Status = 'App' AND Approved >= DATE '${dateStr}'`,
                 outFields: '*',
                 f: 'json',
                 returnGeometry: 'true',
