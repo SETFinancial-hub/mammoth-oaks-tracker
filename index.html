@@ -83,7 +83,7 @@
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
             <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
                 <div class="flex items-center justify-between mb-2">
                     <i data-lucide="file-text" class="w-4 h-4 text-amber-500"></i>
@@ -107,6 +107,14 @@
                 </div>
                 <div class="text-2xl font-bold" id="stat-lotsplits">-</div>
                 <div class="text-xs text-slate-500">Lot Splits</div>
+            </div>
+            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
+                <div class="flex items-center justify-between mb-2">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-purple-500"></i>
+                    <span class="text-xs text-slate-500">APPROVED</span>
+                </div>
+                <div class="text-2xl font-bold" id="stat-approved">-</div>
+                <div class="text-xs text-slate-500">Recently Approved</div>
             </div>
             <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
                 <div class="flex items-center justify-between mb-2">
@@ -168,6 +176,16 @@
                 </section>
                 <section>
                     <h2 class="text-sm font-semibold text-slate-400 mb-3 tracking-wide flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4 text-purple-400"></i>
+                        RECENTLY APPROVED (COMING SOON)
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-2">These rezonings were approved in the last 12 months - development is likely underway or imminent.</p>
+                    <div id="approved-overview" class="space-y-3">
+                        <div class="loading-shimmer h-24 rounded-lg"></div>
+                    </div>
+                </section>
+                <section>
+                    <h2 class="text-sm font-semibold text-slate-400 mb-3 tracking-wide flex items-center gap-2">
                         <i data-lucide="dollar-sign" class="w-4 h-4 text-blue-400"></i>
                         RECENT SALES & LLC PURCHASES
                     </h2>
@@ -184,9 +202,10 @@
         <div id="tab-rezonings" class="tab-content hidden">
             <div class="mb-4 flex items-center gap-4 flex-wrap">
                 <div class="flex gap-2">
-                    <button onclick="filterRezonings('all')" class="filter-btn px-3 py-1.5 text-xs rounded-lg bg-amber-600 text-white" data-filter="all">All</button>
+                    <button onclick="filterRezonings('all')" class="filter-btn px-3 py-1.5 text-xs rounded-lg bg-amber-600 text-white" data-filter="all">All Active</button>
                     <button onclick="filterRezonings('high-density')" class="filter-btn px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400" data-filter="high-density">High-Density</button>
                     <button onclick="filterRezonings('lotsplit')" class="filter-btn px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400" data-filter="lotsplit">Lot Splits</button>
+                    <button onclick="filterRezonings('approved')" class="filter-btn px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400" data-filter="approved">Recently Approved</button>
                 </div>
                 <div class="text-xs text-slate-500" id="rezoning-count">Loading...</div>
             </div>
@@ -570,6 +589,7 @@
 
         // APIs
         const REZONING_API = 'https://gis.charlottenc.gov/arcgis/rest/services/PLN/Rezonings/MapServer/0/query';
+        const REZONING_HISTORY_API = 'https://gis.charlottenc.gov/arcgis/rest/services/PLN/RezoningHistory/MapServer/0/query';
         const ADDRESS_API = 'https://gis.charlottenc.gov/arcgis/rest/services/CountyData/MasterAddress/MapServer/0/query';
 
         // Keywords
@@ -589,6 +609,8 @@
         // State
         let allRezonings = [];
         let nearbyRezonings = [];
+        let approvedRezonings = [];
+        let nearbyApproved = [];
         let allSales = [];
         let addressCache = {};
         let currentFilter = 'all';
@@ -665,6 +687,93 @@
             const data = await response.json();
             if (data.error) throw new Error(data.error.message);
             return data.features || [];
+        }
+
+        async function fetchApprovedRezonings() {
+            // Fetch rezonings approved in the last 12 months
+            const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+            const params = new URLSearchParams({
+                where: `Status = 'App' AND Approved >= ${oneYearAgo}`,
+                outFields: '*',
+                f: 'json',
+                returnGeometry: 'true',
+                outSR: '4326'
+            });
+            try {
+                const response = await fetch(`${REZONING_HISTORY_API}?${params}`);
+                if (!response.ok) return [];
+                const data = await response.json();
+                if (data.error) return [];
+                return data.features || [];
+            } catch (e) {
+                console.error('Error fetching approved rezonings:', e);
+                return [];
+            }
+        }
+
+        async function processApprovedRezonings(features) {
+            const results = [];
+
+            for (const f of features) {
+                const a = f.attributes;
+                const geom = f.geometry;
+
+                // Calculate centroid
+                let lat = null, lon = null;
+                if (geom && geom.rings && geom.rings[0]) {
+                    const ring = geom.rings[0];
+                    lon = ring.reduce((sum, pt) => sum + pt[0], 0) / ring.length;
+                    lat = ring.reduce((sum, pt) => sum + pt[1], 0) / ring.length;
+                }
+
+                // Get zoning info
+                const existZone = a.ExistingZoning || a.ExistZone || '-';
+                const reqZone = a.RequestedZoning || a.ReqZone || '-';
+                const propLuse = a.Propluse || '';
+
+                // Determine type
+                const allText = `${existZone} ${reqZone} ${propLuse} ${a.Petitioner || ''}`.toLowerCase();
+                let type = 'other';
+                if (HIGH_DENSITY.some(kw => allText.includes(kw.toLowerCase()))) {
+                    type = 'high-density';
+                } else if (LOTSPLIT.some(kw => allText.includes(kw.toLowerCase()))) {
+                    type = 'lotsplit';
+                }
+
+                // Check for watched developers
+                const petitioner = a.Petitioner || '';
+                const isWatched = WATCHED_DEVS.some(dev => petitioner.toLowerCase().includes(dev.toLowerCase()));
+
+                // Build description
+                let description = `Rezoned from ${existZone} to ${reqZone}`;
+                if (propLuse) description += ` for ${propLuse}`;
+
+                // Get approval date
+                let approvedDate = null;
+                if (a.Approved) approvedDate = new Date(a.Approved).toLocaleDateString();
+
+                results.push({
+                    id: a.Petition || a.OBJECTID,
+                    petition: a.Petition || 'Unknown',
+                    petitioner: petitioner || 'Unknown',
+                    currentZoning: existZone,
+                    proposedZoning: reqZone,
+                    proposedUse: propLuse,
+                    status: 'Approved',
+                    description: description,
+                    approvedDate: approvedDate,
+                    acres: a.Acres || a.PetAcres || null,
+                    type: type,
+                    isWatched: isWatched,
+                    isApproved: true,
+                    lat: lat,
+                    lon: lon,
+                    address: null,
+                    link: `https://rezoning.org/petition/${a.Petition}`
+                });
+            }
+
+            return results;
         }
 
         async function lookupAddress(lat, lon) {
@@ -904,14 +1013,22 @@
         }
 
         function renderRezoningCard(r, showDistance = false) {
-            const bgColor = r.type === 'high-density' ? 'bg-red-950/30 border-red-800/50' :
+            let bgColor = r.type === 'high-density' ? 'bg-red-950/30 border-red-800/50' :
                            r.type === 'lotsplit' ? 'bg-amber-950/30 border-amber-800/50' :
                            'bg-slate-900 border-slate-800';
+
+            // Override for approved rezonings
+            if (r.isApproved) {
+                bgColor = r.type === 'high-density' ? 'bg-purple-950/30 border-purple-800/50' :
+                          r.type === 'lotsplit' ? 'bg-purple-950/20 border-purple-800/30' :
+                          'bg-purple-950/10 border-purple-800/20';
+            }
 
             const typeBadge = r.type === 'high-density' ? '<span class="px-2 py-0.5 text-xs bg-red-900/50 text-red-300 rounded">HIGH DENSITY</span>' :
                              r.type === 'lotsplit' ? '<span class="px-2 py-0.5 text-xs bg-amber-900/50 text-amber-300 rounded">LOT SPLIT</span>' : '';
 
             const watchedBadge = r.isWatched ? '<span class="px-2 py-0.5 text-xs bg-purple-900/50 text-purple-300 rounded">WATCHED DEV</span>' : '';
+            const approvedBadge = r.isApproved ? '<span class="px-2 py-0.5 text-xs bg-purple-900/50 text-purple-300 rounded">APPROVED</span>' : '';
             const distanceText = showDistance && r.distance ? `<span class="text-emerald-400 font-semibold">${r.distance.toFixed(1)} mi</span>` : '';
 
             // Show address if available, otherwise show petition number prominently
@@ -936,7 +1053,8 @@
                                 <span class="font-semibold text-amber-400">Petition ${r.petition}</span>
                                 ${typeBadge}
                                 ${watchedBadge}
-                                <span class="px-2 py-0.5 text-xs bg-slate-700 text-slate-300 rounded">${r.status}</span>
+                                ${approvedBadge}
+                                ${!r.isApproved ? `<span class="px-2 py-0.5 text-xs bg-slate-700 text-slate-300 rounded">${r.status}</span>` : ''}
                                 ${distanceText ? `<span class="text-xs">${distanceText}</span>` : ''}
                             </div>
                             <div class="mb-2">${addressDisplay}</div>
@@ -948,6 +1066,7 @@
                                 <div>Proposed: <span class="text-amber-400 font-semibold">${r.proposedZoning}</span> <span class="text-slate-600">(${getZoningDescription(r.proposedZoning)})</span></div>
                                 ${r.filedDate ? `<div>Filed: <span class="text-slate-300">${r.filedDate}</span></div>` : ''}
                                 ${r.hearingDate ? `<div>Hearing: <span class="text-red-400 font-semibold">${r.hearingDate}</span></div>` : ''}
+                                ${r.approvedDate ? `<div>Approved: <span class="text-purple-400 font-semibold">${r.approvedDate}</span></div>` : ''}
                             </div>
                         </div>
                         <div class="flex flex-col gap-2">
@@ -979,6 +1098,12 @@
                 nearbyRezonings.slice(0, 10).map(r => renderRezoningCard(r, true)).join('') :
                 '<p class="text-slate-500 text-sm p-4 bg-slate-900 rounded-lg border border-slate-800">No rezonings within 3 miles</p>';
 
+            // Recently approved nearby
+            const approvedNearby = nearbyApproved.filter(r => r.type === 'high-density' || r.isWatched);
+            document.getElementById('approved-overview').innerHTML = nearbyApproved.length > 0 ?
+                nearbyApproved.slice(0, 5).map(r => renderRezoningCard(r, true)).join('') :
+                '<p class="text-slate-500 text-sm p-4 bg-slate-900 rounded-lg border border-slate-800">No recently approved rezonings within 3 miles - this is typical if no major developments passed in the last year.</p>';
+
             // Sales
             const llcSales = allSales.filter(s => s.isLLC).slice(0, 5);
             document.getElementById('sales-overview').innerHTML = llcSales.length > 0 ?
@@ -997,6 +1122,7 @@
             document.getElementById('stat-rezonings').textContent = allRezonings.length;
             document.getElementById('stat-critical').textContent = allRezonings.filter(r => r.type === 'high-density').length;
             document.getElementById('stat-lotsplits').textContent = allRezonings.filter(r => r.type === 'lotsplit').length;
+            document.getElementById('stat-approved').textContent = nearbyApproved.length;
             document.getElementById('stat-nearby').textContent = nearbyRezonings.length;
             document.getElementById('stat-sales').textContent = allSales.length;
 
@@ -1014,10 +1140,20 @@
 
         function renderAllRezonings() {
             let filtered = allRezonings;
-            if (currentFilter === 'high-density') filtered = allRezonings.filter(r => r.type === 'high-density');
-            if (currentFilter === 'lotsplit') filtered = allRezonings.filter(r => r.type === 'lotsplit');
+            let total = allRezonings.length;
+            let countLabel = 'active petitions';
 
-            document.getElementById('rezoning-count').textContent = `${filtered.length} of ${allRezonings.length} petitions`;
+            if (currentFilter === 'high-density') {
+                filtered = allRezonings.filter(r => r.type === 'high-density');
+            } else if (currentFilter === 'lotsplit') {
+                filtered = allRezonings.filter(r => r.type === 'lotsplit');
+            } else if (currentFilter === 'approved') {
+                filtered = approvedRezonings;
+                total = approvedRezonings.length;
+                countLabel = 'approved (last 12 months)';
+            }
+
+            document.getElementById('rezoning-count').textContent = `${filtered.length} ${countLabel}`;
             document.getElementById('all-rezonings').innerHTML = filtered.length > 0 ?
                 filtered.slice(0, 50).map(r => renderRezoningCard(r)).join('') :
                 '<p class="text-slate-500 text-sm p-4">No rezonings match filter</p>';
@@ -1083,8 +1219,9 @@
 
             const q = query.toLowerCase();
 
-            // Search through all rezonings
-            const matches = allRezonings.filter(r => {
+            // Search through all rezonings (active + approved)
+            const allSearchable = [...allRezonings, ...approvedRezonings];
+            const matches = allSearchable.filter(r => {
                 const searchText = [
                     r.petition,
                     r.address,
@@ -1098,8 +1235,14 @@
                 return searchText.includes(q);
             });
 
-            // Sort by distance (nearest first) if available
-            matches.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+            // Sort by distance (nearest first) if available, then by approved status (active first)
+            matches.sort((a, b) => {
+                // Active rezonings first
+                if (a.isApproved && !b.isApproved) return 1;
+                if (!a.isApproved && b.isApproved) return -1;
+                // Then by distance
+                return (a.distance || 999) - (b.distance || 999);
+            });
 
             // Render results
             if (matches.length > 0) {
@@ -1118,14 +1261,14 @@
                 // Check if they searched for a watched developer
                 const isWatchedDev = WATCHED_DEVS.some(d => d.toLowerCase().includes(q) || q.includes(d.toLowerCase()));
                 const watchedMsg = isWatchedDev
-                    ? `<p class="text-emerald-400 text-sm mb-2">✓ "${query}" is on your watched list - no active petitions right now (good news!)</p>`
+                    ? `<p class="text-emerald-400 text-sm mb-2">✓ "${query}" is on your watched list - no active or recently approved petitions found.</p>`
                     : '';
 
                 resultsContainer.innerHTML = `
                     <div class="text-center py-4">
                         ${watchedMsg}
-                        <p class="text-slate-400 mb-2">${isWatchedDev ? 'This developer has no active rezoning petitions in Charlotte.' : `No rezonings found for "${query}"`}</p>
-                        <p class="text-xs text-slate-500">Try: "Blue Azalea", "Hines", "Northway", "Sharon View", or a petition # like "2025-137"</p>
+                        <p class="text-slate-400 mb-2">${isWatchedDev ? 'This developer has no active or recently approved rezoning petitions in Charlotte.' : `No rezonings found for "${query}"`}</p>
+                        <p class="text-xs text-slate-500">Try: "Blue Azalea", "Hines", "Veer Homes", "Sharon View", or a petition # like "2024-059"</p>
                     </div>
                 `;
                 resultsContainer.classList.remove('hidden');
@@ -1229,23 +1372,28 @@
         }
 
         function renderDeveloperScorecard() {
-            // Count petitions by petitioner
+            // Count petitions by petitioner (include both active and approved)
             const devCounts = {};
-            allRezonings.forEach(r => {
+            const allPetitions = [...allRezonings, ...approvedRezonings];
+            allPetitions.forEach(r => {
                 const dev = r.petitioner?.trim() || 'Unknown';
                 if (dev && dev !== 'Unknown') {
                     if (!devCounts[dev]) {
-                        devCounts[dev] = { total: 0, highDensity: 0, nearby: 0, watched: r.isWatched };
+                        devCounts[dev] = { active: 0, approved: 0, highDensity: 0, nearby: 0, watched: r.isWatched };
                     }
-                    devCounts[dev].total++;
+                    if (r.isApproved) {
+                        devCounts[dev].approved++;
+                    } else {
+                        devCounts[dev].active++;
+                    }
                     if (r.type === 'high-density') devCounts[dev].highDensity++;
                     if (r.distance && r.distance <= SEARCH_RADIUS_MILES) devCounts[dev].nearby++;
                 }
             });
 
-            // Sort by total petitions
+            // Sort by total petitions (active + approved)
             const sorted = Object.entries(devCounts)
-                .sort((a, b) => b[1].total - a[1].total)
+                .sort((a, b) => (b[1].active + b[1].approved) - (a[1].active + a[1].approved))
                 .slice(0, 10);
 
             const container = document.getElementById('developer-scorecard');
@@ -1256,7 +1404,8 @@
                             <thead class="bg-slate-900">
                                 <tr>
                                     <th class="px-4 py-2 text-left text-xs font-semibold text-slate-400">DEVELOPER/PETITIONER</th>
-                                    <th class="px-4 py-2 text-center text-xs font-semibold text-slate-400">TOTAL</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-slate-400">ACTIVE</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-slate-400">APPROVED</th>
                                     <th class="px-4 py-2 text-center text-xs font-semibold text-slate-400">HIGH DENSITY</th>
                                     <th class="px-4 py-2 text-center text-xs font-semibold text-slate-400">NEAR YOU</th>
                                 </tr>
@@ -1268,9 +1417,10 @@
                                             ${dev}
                                             ${counts.watched ? '<span class="ml-2 px-1.5 py-0.5 text-xs bg-purple-900/50 text-purple-300 rounded">WATCHED</span>' : ''}
                                         </td>
-                                        <td class="px-4 py-2 text-center text-slate-300">${counts.total}</td>
+                                        <td class="px-4 py-2 text-center ${counts.active > 0 ? 'text-amber-400 font-semibold' : 'text-slate-500'}">${counts.active}</td>
+                                        <td class="px-4 py-2 text-center ${counts.approved > 0 ? 'text-purple-400 font-semibold' : 'text-slate-500'}">${counts.approved}</td>
                                         <td class="px-4 py-2 text-center ${counts.highDensity > 0 ? 'text-red-400 font-semibold' : 'text-slate-500'}">${counts.highDensity}</td>
-                                        <td class="px-4 py-2 text-center ${counts.nearby > 0 ? 'text-amber-400 font-semibold' : 'text-slate-500'}">${counts.nearby}</td>
+                                        <td class="px-4 py-2 text-center ${counts.nearby > 0 ? 'text-emerald-400 font-semibold' : 'text-slate-500'}">${counts.nearby}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1465,15 +1615,29 @@ Mammoth Oaks/Lansdowne Neighborhood
             hideError();
 
             try {
-                // Fetch rezonings
+                // Fetch active rezonings
                 const features = await fetchRezonings();
                 allRezonings = await processRezonings(features);
 
-                // Calculate distances and filter nearby
-                nearbyRezonings = filterNearby(allRezonings);
+                // Fetch approved rezonings (last 12 months)
+                const approvedFeatures = await fetchApprovedRezonings();
+                approvedRezonings = await processApprovedRezonings(approvedFeatures);
 
-                // Enrich with addresses (only for nearby ones)
+                // Calculate distances for approved rezonings
+                approvedRezonings.forEach(r => {
+                    if (r.lat && r.lon) {
+                        r.distance = calculateDistance(NEIGHBORHOOD_CENTER.lat, NEIGHBORHOOD_CENTER.lon, r.lat, r.lon);
+                    }
+                });
+
+                // Filter nearby for both active and approved
+                nearbyRezonings = filterNearby(allRezonings);
+                nearbyApproved = approvedRezonings.filter(r => r.distance && r.distance <= SEARCH_RADIUS_MILES)
+                    .sort((a, b) => (a.distance || 999) - (b.distance || 999));
+
+                // Enrich with addresses
                 await enrichWithAddresses(allRezonings);
+                await enrichWithAddresses(approvedRezonings);
 
                 // Fetch sales
                 allSales = await fetchSalesData();
