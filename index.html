@@ -409,6 +409,7 @@
         const SALES_CACHE = 'mammoth_oaks_sales_cache';
         const ADDRESS_CACHE = 'mammoth_oaks_address_cache';
         const DEFAULT_RENTCAST_KEY = '8b894ad1348e4918ae3443328dadc07a';
+        const RENTCAST_SESSION_KEY = 'mammoth_oaks_rentcast_called'; // Prevent multiple API calls per session
 
         let allRezonings = [];
         let nearbyRezonings = [];
@@ -605,13 +606,25 @@
         }
 
         async function fetchSalesData(forceRefresh) {
-            if (forceRefresh) try { localStorage.removeItem(SALES_CACHE); } catch (e) {}
+            if (forceRefresh) try { localStorage.removeItem(SALES_CACHE); sessionStorage.removeItem(RENTCAST_SESSION_KEY); } catch (e) {}
             const apiKey = localStorage.getItem(API_KEY_STORAGE) || DEFAULT_RENTCAST_KEY;
             let cached = null;
             try { const raw = localStorage.getItem(SALES_CACHE); if (raw) cached = JSON.parse(raw); } catch (e) {}
+            
+            // Return cached data if valid (24 hours)
             if (!forceRefresh && cached && cached.sales && cached.sales.length > 0 && Date.now() - cached.timestamp < 86400000) return cached.sales;
+            
+            // Only call RentCast API once per session (50 call limit)
+            const alreadyCalled = sessionStorage.getItem(RENTCAST_SESSION_KEY);
+            if (!forceRefresh && alreadyCalled) {
+                console.log('RentCast: Skipping API call (already called this session)');
+                if (cached && cached.sales && cached.sales.length > 0) return cached.sales;
+                return [];
+            }
+            
             if (apiKey) {
                 try {
+                    sessionStorage.setItem(RENTCAST_SESSION_KEY, 'true'); // Mark as called for this session
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 12000);
                     // Use /listings/sale endpoint - returns active sale listings with prices
