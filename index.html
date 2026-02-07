@@ -457,13 +457,17 @@
         }
 
         // ============================================
-        // TAKE ACTION URL HELPER
+        // RELIABLE LINK HELPERS (always work, never 404)
         // ============================================
-        function getTakeActionUrl(petition) {
-            if (!petition || !petition.includes('-')) return null;
-            const year = petition.split('-')[0];
-            // Link to the Charlotte rezoning year index — always works, lists all petitions
-            return `https://www.charlottenc.gov/Growth-and-Development/Planning-and-Development/Rezoning/${year}`;
+        function getSearchUrl(petition) {
+            // Google search for this specific petition — always loads, finds Charlotte pages + news + community posts
+            if (!petition || petition === 'Unknown') return null;
+            return `https://www.google.com/search?q=Charlotte+NC+rezoning+petition+${encodeURIComponent(petition)}`;
+        }
+
+        function getMapUrl(lat, lon) {
+            if (!lat || !lon) return null;
+            return `https://www.google.com/maps/@${lat},${lon},17z/data=!3m1!1e3`;
         }
 
         // ============================================
@@ -570,7 +574,7 @@
                 let description = `Rezoned from ${existZone} to ${reqZone}`;
                 if (propLuse) description += ` for ${propLuse}`;
                 let approvedDate = a.Approved ? new Date(a.Approved).toLocaleDateString() : null;
-                results.push({ id: a.Petition || a.OBJECTID, petition: a.Petition || 'Unknown', petitioner: petitioner || 'Unknown', currentZoning: existZone, proposedZoning: reqZone, proposedUse: propLuse, status: 'Approved', description, approvedDate, acres: a.Acres || a.PetAcres || null, type, isWatched, isApproved: true, lat, lon, address: null, link: `https://rezoning.org/petition/${a.Petition}` });
+                results.push({ id: a.Petition || a.OBJECTID, petition: a.Petition || 'Unknown', petitioner: petitioner || 'Unknown', currentZoning: existZone, proposedZoning: reqZone, proposedUse: propLuse, status: 'Approved', description, approvedDate, acres: a.Acres || a.PetAcres || null, type, isWatched, isApproved: true, lat, lon, address: null });
             }
             return results;
         }
@@ -651,7 +655,7 @@
                 if (a.HearingDate) hearingDate = new Date(a.HearingDate).toLocaleDateString();
                 else if (a.Hearing_Date) hearingDate = new Date(a.Hearing_Date).toLocaleDateString();
                 else if (a.ZoningDate) hearingDate = new Date(a.ZoningDate).toLocaleDateString();
-                results.push({ id: a.Petition || a.OBJECTID, petition: a.Petition || 'Unknown', petitioner: petitioner || 'Unknown', currentZoning: existZone, proposedZoning: reqZone, proposedUse: propLuse, status: a.Status || 'Pending', description, filedDate: a.Received ? new Date(a.Received).toLocaleDateString() : null, hearingDate, acres: a.Acres || a.PetAcres || null, type, isWatched, lat, lon, address: null, link: a.Hyperlink || `https://rezoning.org/petition/${a.Petition}` });
+                results.push({ id: a.Petition || a.OBJECTID, petition: a.Petition || 'Unknown', petitioner: petitioner || 'Unknown', currentZoning: existZone, proposedZoning: reqZone, proposedUse: propLuse, status: a.Status || 'Pending', description, filedDate: a.Received ? new Date(a.Received).toLocaleDateString() : null, hearingDate, acres: a.Acres || a.PetAcres || null, type, isWatched, lat, lon, address: null });
             }
             return results;
         }
@@ -710,8 +714,6 @@
                        <p class="text-sm font-semibold text-gray-900">${plainChange}</p>
                    </div>` : '';
 
-            const takeActionUrl = !r.isApproved ? getTakeActionUrl(r.petition) : null;
-
             return `
                 <div class="p-4 rounded-2xl ${bgClass} ${cardClass} border border-gray-200 shadow-sm">
                     <div class="flex items-start justify-between gap-3">
@@ -735,9 +737,8 @@
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 flex-shrink-0">
-                            ${takeActionUrl ? `<a href="${takeActionUrl}" target="_blank" class="flex items-center gap-1.5 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors text-xs font-bold whitespace-nowrap shadow-sm">Take Action <i data-lucide="megaphone" class="w-3.5 h-3.5"></i></a>` : ''}
-                            <a href="${r.link}" target="_blank" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors text-xs font-medium text-gray-700 whitespace-nowrap">Details <i data-lucide="external-link" class="w-3 h-3"></i></a>
-                            ${r.lat && r.lon ? `<a href="https://www.google.com/maps/@${r.lat},${r.lon},17z/data=!3m1!1e3" target="_blank" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors text-xs font-medium text-gray-700 whitespace-nowrap">Map <i data-lucide="map-pin" class="w-3 h-3"></i></a>` : ''}
+                            ${getSearchUrl(r.petition) ? `<a href="${getSearchUrl(r.petition)}" target="_blank" class="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors text-xs font-bold whitespace-nowrap shadow-sm">More Info <i data-lucide="search" class="w-3.5 h-3.5"></i></a>` : ''}
+                            ${getMapUrl(r.lat, r.lon) ? `<a href="${getMapUrl(r.lat, r.lon)}" target="_blank" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors text-xs font-medium text-gray-700 whitespace-nowrap">Map <i data-lucide="map-pin" class="w-3 h-3"></i></a>` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -758,7 +759,7 @@
             const addressDisplay = s.address && s.address !== '0' && !s.address.startsWith('0 ')
                 ? `<p class="font-semibold text-gray-900 text-sm">${s.address}</p>`
                 : `<p class="text-gray-400 text-sm">Location: see map</p>`;
-            const takeActionUrl = s.rezoningPetition && s.rezoningPetition !== 'N/A' ? getTakeActionUrl(s.rezoningPetition) : null;
+            const searchUrl = s.rezoningPetition && s.rezoningPetition !== 'N/A' ? getSearchUrl(s.rezoningPetition) : null;
 
             return `
                 <div class="p-4 rounded-2xl ${bgClass} ${cardClass} border border-gray-200 shadow-sm">
@@ -783,8 +784,8 @@
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 flex-shrink-0">
-                            ${takeActionUrl ? `<a href="${takeActionUrl}" target="_blank" class="flex items-center gap-1.5 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors text-xs font-bold whitespace-nowrap shadow-sm">Take Action <i data-lucide="megaphone" class="w-3.5 h-3.5"></i></a>` : ''}
-                            ${s.lat && s.lon ? `<a href="https://www.google.com/maps/@${s.lat},${s.lon},17z/data=!3m1!1e3" target="_blank" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors text-xs font-medium text-gray-700 whitespace-nowrap">Map <i data-lucide="map-pin" class="w-3 h-3"></i></a>` : ''}
+                            ${searchUrl ? `<a href="${searchUrl}" target="_blank" class="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors text-xs font-bold whitespace-nowrap shadow-sm">More Info <i data-lucide="search" class="w-3.5 h-3.5"></i></a>` : ''}
+                            ${getMapUrl(s.lat, s.lon) ? `<a href="${getMapUrl(s.lat, s.lon)}" target="_blank" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors text-xs font-medium text-gray-700 whitespace-nowrap">Map <i data-lucide="map-pin" class="w-3 h-3"></i></a>` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -953,7 +954,7 @@
             const isSub = r._render === 'subdivision' || r.isSubdivision;
             const label = isSub ? r.name : `Petition ${r.petition}`;
             const subBadge = isSub ? '<span class="px-1.5 py-0.5 text-xs font-semibold bg-cyan-100 text-cyan-700 rounded-lg">Subdivision</span>' : '';
-            const takeActionUrl = !isSub && !r.isApproved ? getTakeActionUrl(r.petition) : null;
+            const searchUrl = !isSub ? getSearchUrl(r.petition) : (r.rezoningPetition ? getSearchUrl(r.rezoningPetition) : null);
 
             return `
                 <div class="p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100" onclick="${isSub ? '' : `jumpToRezoning('${r.petition}')`}">
@@ -967,7 +968,7 @@
                             <p class="text-xs text-gray-500 mt-0.5">${isSub ? `Developer: ${r.developer}` : `Petitioner: ${r.petitioner}`}</p>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            ${takeActionUrl ? `<a href="${takeActionUrl}" target="_blank" onclick="event.stopPropagation()" class="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold whitespace-nowrap">Take Action</a>` : ''}
+                            ${searchUrl ? `<a href="${searchUrl}" target="_blank" onclick="event.stopPropagation()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold whitespace-nowrap">More Info</a>` : ''}
                             <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
                         </div>
                     </div>
