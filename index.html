@@ -65,6 +65,23 @@
             </div>
         </div>
 
+        <!-- Search Bar -->
+        <div class="mb-6">
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500"></i>
+                <input type="text" id="search-input"
+                       placeholder="Search by address, street, petition #, or developer name..."
+                       oninput="handleSearch(this.value)"
+                       class="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50 text-sm">
+                <div id="search-clear" class="hidden absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-slate-500 hover:text-white" onclick="clearSearch()">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </div>
+            </div>
+            <div id="search-results" class="hidden mt-3 p-4 rounded-xl bg-slate-900 border border-slate-800 max-h-96 overflow-y-auto">
+                <!-- Search results will appear here -->
+            </div>
+        </div>
+
         <!-- Stats Cards -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
@@ -1039,6 +1056,126 @@
                         <td class="px-4 py-3">${s.isLLC ? '<span class="px-2 py-1 text-xs bg-amber-900/50 text-amber-300 rounded">LLC</span>' : ''}</td>
                     </tr>
                 `).join('') : emptyMessage;
+        }
+
+        // ============================================
+        // SEARCH FUNCTIONS
+        // ============================================
+
+        let searchTimeout = null;
+
+        function handleSearch(query) {
+            // Debounce search
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => performSearch(query), 150);
+
+            // Show/hide clear button
+            document.getElementById('search-clear').classList.toggle('hidden', !query);
+        }
+
+        function performSearch(query) {
+            const resultsContainer = document.getElementById('search-results');
+
+            if (!query || query.length < 2) {
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const q = query.toLowerCase();
+
+            // Search through all rezonings
+            const matches = allRezonings.filter(r => {
+                const searchText = [
+                    r.petition,
+                    r.address,
+                    r.petitioner,
+                    r.currentZoning,
+                    r.proposedZoning,
+                    r.proposedUse,
+                    r.description
+                ].filter(Boolean).join(' ').toLowerCase();
+
+                return searchText.includes(q);
+            });
+
+            // Sort by distance (nearest first) if available
+            matches.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+
+            // Render results
+            if (matches.length > 0) {
+                resultsContainer.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-sm text-slate-400">Found <span class="text-amber-400 font-semibold">${matches.length}</span> matching rezonings</p>
+                        <button onclick="clearSearch()" class="text-xs text-slate-500 hover:text-white">Clear</button>
+                    </div>
+                    <div class="space-y-3">
+                        ${matches.slice(0, 10).map(r => renderSearchResult(r)).join('')}
+                    </div>
+                    ${matches.length > 10 ? `<p class="text-xs text-slate-500 mt-3 text-center">Showing 10 of ${matches.length} results. Be more specific to narrow down.</p>` : ''}
+                `;
+                resultsContainer.classList.remove('hidden');
+            } else {
+                resultsContainer.innerHTML = `
+                    <div class="text-center py-4">
+                        <p class="text-slate-400 mb-2">No rezonings found for "${query}"</p>
+                        <p class="text-xs text-slate-500">Try searching by street name, petition number (e.g., "2025-137"), or developer name</p>
+                    </div>
+                `;
+                resultsContainer.classList.remove('hidden');
+            }
+
+            lucide.createIcons();
+        }
+
+        function renderSearchResult(r) {
+            const distanceBadge = r.distance ? `<span class="text-emerald-400">${r.distance.toFixed(1)} mi</span>` : '';
+            const typeBadge = r.type === 'high-density' ? '<span class="px-1.5 py-0.5 text-xs bg-red-900/50 text-red-300 rounded">HIGH DENSITY</span>' :
+                             r.type === 'lotsplit' ? '<span class="px-1.5 py-0.5 text-xs bg-amber-900/50 text-amber-300 rounded">LOT SPLIT</span>' : '';
+
+            return `
+                <div class="p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer" onclick="jumpToRezoning('${r.petition}')">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <span class="font-semibold text-amber-400 text-sm">Petition ${r.petition}</span>
+                                ${typeBadge}
+                                ${distanceBadge}
+                            </div>
+                            <p class="text-white text-sm truncate">${r.address || 'Location: see petition details'}</p>
+                            <p class="text-xs text-slate-400 truncate">${r.description}</p>
+                            <p class="text-xs text-slate-500 mt-1">Petitioner: ${r.petitioner}</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 flex-shrink-0"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        function jumpToRezoning(petition) {
+            // Clear search
+            clearSearch();
+
+            // Switch to All Rezonings tab
+            showTab('rezonings');
+
+            // Scroll to and highlight the rezoning
+            setTimeout(() => {
+                const cards = document.querySelectorAll('#all-rezonings > div');
+                for (const card of cards) {
+                    if (card.textContent.includes(`Petition ${petition}`)) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.classList.add('ring-2', 'ring-amber-500');
+                        setTimeout(() => card.classList.remove('ring-2', 'ring-amber-500'), 3000);
+                        break;
+                    }
+                }
+            }, 100);
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results').classList.add('hidden');
+            document.getElementById('search-clear').classList.add('hidden');
         }
 
         function renderUpcomingHearings() {
