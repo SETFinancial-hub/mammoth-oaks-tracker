@@ -519,6 +519,60 @@
         let currentSalesFilter = 'all';
 
         // ============================================
+        // ZONING TRANSLATOR - Plain English descriptions
+        // ============================================
+
+        function getZoningDescription(code) {
+            if (!code || code === '-') return 'Unknown';
+            const c = code.toUpperCase().replace(/\(CD\)|\(SPA\)|\(LLWPA\)/g, '').trim();
+
+            // Single-family residential (good)
+            if (/^R-3|^R-4|^R-5|^R-6|^R-8|^R-MH/.test(c)) return 'Single-family homes';
+            if (/^N1-A|^N1-B/.test(c)) return 'Single-family homes';
+            if (/^RE-1|^RE-2|^RE-3/.test(c)) return 'Large lot single-family';
+
+            // Lot splits (warning)
+            if (/^N1-C/.test(c)) return 'Lot splits allowed (2-3 homes per lot)';
+
+            // Attached/Townhomes (high density)
+            if (/^N1-D|^N1-E/.test(c)) return 'Small lot single-family or duplexes';
+            if (/^N2-A/.test(c)) return 'Townhomes & duplexes (8-12 units/acre)';
+            if (/^N2-B/.test(c)) return 'Townhomes & triplexes (12-17 units/acre)';
+
+            // Multi-family (highest density)
+            if (/^UR-1/.test(c)) return 'Urban residential (8-12 units/acre)';
+            if (/^UR-2/.test(c)) return 'Apartments & condos (12-18 units/acre)';
+            if (/^UR-3/.test(c)) return 'High-rise apartments (18-22+ units/acre)';
+            if (/^MF/.test(c)) return 'Multi-family apartments';
+
+            // Mixed-use (very high density)
+            if (/^TOD/.test(c)) return 'Transit-oriented (apartments + retail)';
+            if (/^MUDD/.test(c)) return 'Mixed-use (apartments + commercial)';
+            if (/^MX/.test(c)) return 'Mixed-use development';
+            if (/^CC/.test(c)) return 'Commercial center';
+            if (/^TS/.test(c)) return 'Transit station area';
+
+            // Commercial/Industrial
+            if (/^B-1|^B-2|^NS|^O-1|^O-2/.test(c)) return 'Commercial/Office';
+            if (/^I-1|^I-2/.test(c)) return 'Industrial';
+            if (/^INST/.test(c)) return 'Institutional';
+
+            // Legacy codes
+            if (/^R-17MF|^R-22MF|^R-43MF/.test(c)) return 'Multi-family apartments';
+            if (/^R-12MF/.test(c)) return 'Townhomes/apartments';
+
+            return code; // Return original if unknown
+        }
+
+        function getZoningChangeDescription(fromZone, toZone) {
+            const from = getZoningDescription(fromZone);
+            const to = getZoningDescription(toZone);
+
+            if (from === to) return null;
+            return `${from} → ${to}`;
+        }
+
+        // ============================================
         // API FUNCTIONS
         // ============================================
 
@@ -837,6 +891,15 @@
                 ? `<span class="font-semibold text-white">${r.address}</span>`
                 : `<span class="text-slate-400">Location: see petition details</span>`;
 
+            // Plain language zoning change description
+            const plainChange = getZoningChangeDescription(r.currentZoning, r.proposedZoning);
+            const plainChangeHtml = plainChange
+                ? `<div class="mt-2 p-2 rounded bg-slate-800/50 border border-slate-700">
+                       <p class="text-xs text-slate-500 mb-1">WHAT THIS MEANS:</p>
+                       <p class="text-sm font-semibold ${r.type === 'high-density' ? 'text-red-300' : r.type === 'lotsplit' ? 'text-amber-300' : 'text-slate-200'}">${plainChange}</p>
+                   </div>`
+                : '';
+
             return `
                 <div class="p-4 rounded-lg ${bgColor} border">
                     <div class="flex items-start justify-between gap-4">
@@ -849,12 +912,12 @@
                                 ${distanceText ? `<span class="text-xs">${distanceText}</span>` : ''}
                             </div>
                             <div class="mb-2">${addressDisplay}</div>
-                            <p class="text-sm text-slate-400 mb-2">${r.description}</p>
-                            <div class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-500">
+                            ${plainChangeHtml}
+                            <div class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-500 mt-3">
                                 <div>Petitioner: <span class="text-slate-300">${r.petitioner}</span></div>
                                 <div>Acres: <span class="text-slate-300">${r.acres || '-'}</span></div>
-                                <div>Current: <span class="text-slate-300">${r.currentZoning}</span></div>
-                                <div>Proposed: <span class="text-amber-400 font-semibold">${r.proposedZoning}</span></div>
+                                <div>Current: <span class="text-slate-300">${r.currentZoning}</span> <span class="text-slate-600">(${getZoningDescription(r.currentZoning)})</span></div>
+                                <div>Proposed: <span class="text-amber-400 font-semibold">${r.proposedZoning}</span> <span class="text-slate-600">(${getZoningDescription(r.proposedZoning)})</span></div>
                                 ${r.filedDate ? `<div>Filed: <span class="text-slate-300">${r.filedDate}</span></div>` : ''}
                                 ${r.hearingDate ? `<div>Hearing: <span class="text-red-400 font-semibold">${r.hearingDate}</span></div>` : ''}
                             </div>
