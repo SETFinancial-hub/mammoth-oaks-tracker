@@ -82,49 +82,49 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- Stats Cards - Clickable -->
         <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
-                <div class="flex items-center justify-between mb-2">
-                    <i data-lucide="file-text" class="w-4 h-4 text-amber-500"></i>
-                    <span class="text-xs text-slate-500">ACTIVE</span>
-                </div>
-                <div class="text-2xl font-bold" id="stat-rezonings">-</div>
-                <div class="text-xs text-slate-500">Rezoning Petitions</div>
-            </div>
-            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
+            <div onclick="scrollToSection('critical-alerts')" class="p-4 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-red-500/50 hover:bg-slate-800/50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <i data-lucide="building-2" class="w-4 h-4 text-red-500"></i>
-                    <span class="text-xs text-slate-500">ALERT</span>
+                    <span class="text-xs text-slate-500">NEARBY</span>
                 </div>
                 <div class="text-2xl font-bold" id="stat-critical">-</div>
                 <div class="text-xs text-slate-500">High-Density</div>
             </div>
-            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
+            <div onclick="scrollToSection('lotsplit-overview')" class="p-4 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-amber-500/50 hover:bg-slate-800/50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <i data-lucide="scissors" class="w-4 h-4 text-amber-500"></i>
-                    <span class="text-xs text-slate-500">WATCH</span>
+                    <span class="text-xs text-slate-500">NEARBY</span>
                 </div>
                 <div class="text-2xl font-bold" id="stat-lotsplits">-</div>
                 <div class="text-xs text-slate-500">Lot Splits</div>
             </div>
-            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
+            <div onclick="scrollToSection('approved-overview')" class="p-4 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-purple-500/50 hover:bg-slate-800/50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <i data-lucide="check-circle" class="w-4 h-4 text-purple-500"></i>
-                    <span class="text-xs text-slate-500">APPROVED</span>
+                    <span class="text-xs text-slate-500">NEARBY</span>
                 </div>
                 <div class="text-2xl font-bold" id="stat-approved">-</div>
                 <div class="text-xs text-slate-500">Recently Approved</div>
             </div>
-            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
+            <div onclick="scrollToSection('nearby-overview')" class="p-4 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <i data-lucide="map-pin" class="w-4 h-4 text-emerald-500"></i>
                     <span class="text-xs text-slate-500">NEARBY</span>
                 </div>
                 <div class="text-2xl font-bold" id="stat-nearby">-</div>
-                <div class="text-xs text-slate-500">Within 3 Miles</div>
+                <div class="text-xs text-slate-500">All Within 3 Mi</div>
             </div>
-            <div class="p-4 rounded-lg bg-slate-900 border border-slate-800">
+            <div onclick="showTab('rezonings')" class="p-4 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-amber-500/50 hover:bg-slate-800/50 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <i data-lucide="file-text" class="w-4 h-4 text-amber-500"></i>
+                    <span class="text-xs text-slate-500">CITYWIDE</span>
+                </div>
+                <div class="text-2xl font-bold" id="stat-rezonings">-</div>
+                <div class="text-xs text-slate-500">Total Active</div>
+            </div>
+            <div onclick="showTab('sales')" class="p-4 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <i data-lucide="dollar-sign" class="w-4 h-4 text-blue-500"></i>
                     <span class="text-xs text-slate-500">TRACKED</span>
@@ -870,12 +870,12 @@
                 `).join('') :
                 `<p class="text-slate-500 text-sm p-4 bg-slate-900 rounded-lg border border-slate-800">${allSales.length > 0 ? 'No LLC purchases detected in recent sales' : 'Loading sales data from RentCast...'}</p>`;
 
-            // Stats
-            document.getElementById('stat-rezonings').textContent = allRezonings.length;
-            document.getElementById('stat-critical').textContent = allRezonings.filter(r => r.type === 'high-density').length;
-            document.getElementById('stat-lotsplits').textContent = allRezonings.filter(r => r.type === 'lotsplit').length;
+            // Stats - show NEARBY counts for the key metrics
+            document.getElementById('stat-critical').textContent = criticalNearby.length;
+            document.getElementById('stat-lotsplits').textContent = lotSplitsNearby.length;
             document.getElementById('stat-approved').textContent = nearbyApproved.length;
             document.getElementById('stat-nearby').textContent = nearbyRezonings.length;
+            document.getElementById('stat-rezonings').textContent = allRezonings.length;
             document.getElementById('stat-sales').textContent = allSales.length;
 
             // Alert banner
@@ -1083,6 +1083,18 @@
         // ============================================
         // UI FUNCTIONS
         // ============================================
+
+        function scrollToSection(sectionId) {
+            showTab('overview');
+            setTimeout(() => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    section.classList.add('ring-2', 'ring-amber-500/50');
+                    setTimeout(() => section.classList.remove('ring-2', 'ring-amber-500/50'), 2000);
+                }
+            }, 100);
+        }
 
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
