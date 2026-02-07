@@ -190,33 +190,92 @@
 
         <!-- Tab: Sales -->
         <div id="tab-sales" class="tab-content hidden">
-            <div class="mb-4 flex items-center justify-between flex-wrap gap-4">
-                <div>
-                    <p class="text-sm text-slate-400">Recent property sales in 28270 - LLC purchases flagged</p>
-                    <p class="text-xs text-slate-500 mt-1" id="sales-source">Data refreshes automatically</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="filterSales('all')" class="sales-filter-btn px-3 py-1.5 text-xs rounded-lg bg-amber-600 text-white" data-sales-filter="all">All</button>
-                    <button onclick="filterSales('llc')" class="sales-filter-btn px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400" data-sales-filter="llc">LLC Only</button>
-                    <a href="https://polaris3g.mecklenburgcountync.gov/" target="_blank" class="px-3 py-1.5 text-xs rounded-lg bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 flex items-center gap-1">
-                        POLARIS Deeds <i data-lucide="external-link" class="w-3 h-3"></i>
-                    </a>
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-white mb-2">Property Sales Lookup</h2>
+                <p class="text-sm text-slate-400">Search recent sales in Mammoth Oaks / Lansdowne (28270) using these free resources. Look for LLC buyers - they're often developers planning to split lots or build multiple units.</p>
+            </div>
+
+            <!-- Quick Search Links -->
+            <div class="grid md:grid-cols-3 gap-4 mb-6">
+                <a href="https://www.redfin.com/zipcode/28270/filter/include=sold-3mo,viewport=35.17073:35.09487:-80.76157:-80.86643" target="_blank" class="p-4 rounded-lg bg-gradient-to-br from-red-950/40 to-red-900/20 border border-red-800/50 hover:border-red-600 transition-colors group">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold">R</div>
+                        <div>
+                            <p class="font-semibold text-white group-hover:text-red-300">Redfin - Sold Homes</p>
+                            <p class="text-xs text-slate-500">Last 3 months</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400">Best for recent MLS sales with photos, sale prices, and days on market.</p>
+                </a>
+                <a href="https://www.zillow.com/charlotte-nc-28270/sold/?searchQueryState=%7B%22pagination%22%3A%7B%7D%2C%22usersSearchTerm%22%3A%2228270%22%2C%22mapBounds%22%3A%7B%22north%22%3A35.17%2C%22south%22%3A35.09%2C%22east%22%3A-80.76%2C%22west%22%3A-80.87%7D%2C%22filterState%22%3A%7B%22sort%22%3A%7B%22value%22%3A%22days%22%7D%2C%22ah%22%3A%7B%22value%22%3Atrue%7D%2C%22rs%22%3A%7B%22value%22%3Atrue%7D%2C%22fsba%22%3A%7B%22value%22%3Afalse%7D%2C%22fsbo%22%3A%7B%22value%22%3Afalse%7D%2C%22nc%22%3A%7B%22value%22%3Afalse%7D%2C%22cmsn%22%3A%7B%22value%22%3Afalse%7D%2C%22auc%22%3A%7B%22value%22%3Afalse%7D%2C%22fore%22%3A%7B%22value%22%3Afalse%7D%7D%7D" target="_blank" class="p-4 rounded-lg bg-gradient-to-br from-blue-950/40 to-blue-900/20 border border-blue-800/50 hover:border-blue-600 transition-colors group">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">Z</div>
+                        <div>
+                            <p class="font-semibold text-white group-hover:text-blue-300">Zillow - Sold Homes</p>
+                            <p class="text-xs text-slate-500">Recently sold</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400">Zestimate history, tax records, and neighborhood comparables.</p>
+                </a>
+                <a href="https://polaris3g.mecklenburgcountync.gov/" target="_blank" class="p-4 rounded-lg bg-gradient-to-br from-emerald-950/40 to-emerald-900/20 border border-emerald-800/50 hover:border-emerald-600 transition-colors group">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold">P</div>
+                        <div>
+                            <p class="font-semibold text-white group-hover:text-emerald-300">POLARIS - Official Deeds</p>
+                            <p class="text-xs text-slate-500">County records</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400">ALL recorded sales from Mecklenburg County. Shows buyer names including LLCs.</p>
+                </a>
+            </div>
+
+            <!-- How to spot developer purchases -->
+            <div class="p-4 rounded-lg bg-amber-950/30 border border-amber-800/50 mb-6">
+                <h3 class="font-semibold text-amber-300 mb-2 flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                    How to Spot Developer Purchases
+                </h3>
+                <ul class="text-sm text-slate-300 space-y-1 list-disc list-inside">
+                    <li>Buyer name contains <strong>LLC, LP, Inc, Holdings, Properties, Investments, or Trust</strong></li>
+                    <li>Cash purchases (no mortgage recorded)</li>
+                    <li>Older homes on large lots (prime for lot splits)</li>
+                    <li>Multiple properties purchased by same buyer</li>
+                    <li>Below-market purchases (motivated sellers)</li>
+                </ul>
+            </div>
+
+            <!-- Specific street searches -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-slate-400 mb-3">QUICK STREET SEARCHES</h3>
+                <div class="flex flex-wrap gap-2">
+                    <a href="https://www.redfin.com/zipcode/28270/filter/include=sold-3mo,keyword=preston" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300">Preston Ln</a>
+                    <a href="https://www.redfin.com/zipcode/28270/filter/include=sold-3mo,keyword=lansdowne" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300">Lansdowne</a>
+                    <a href="https://www.redfin.com/zipcode/28270/filter/include=sold-3mo,keyword=lansing" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300">Lansing Dr</a>
+                    <a href="https://www.redfin.com/zipcode/28270/filter/include=sold-3mo,keyword=mammoth" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300">Mammoth Oaks</a>
+                    <a href="https://www.redfin.com/zipcode/28270/filter/include=sold-3mo,keyword=sharon" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-slate-300">Sharon View</a>
                 </div>
             </div>
-            <div class="mb-4 p-3 rounded-lg bg-blue-950/30 border border-blue-800/30 text-xs">
-                <p class="text-blue-300"><strong>Note:</strong> Sales data from RentCast may not include all recent transactions. For complete deed records, use
-                    <a href="https://polaris3g.mecklenburgcountync.gov/" target="_blank" class="text-blue-400 hover:underline">Mecklenburg POLARIS</a>
-                    → Search by address or parcel → "Deeds" tab. This shows ALL recorded sales from county records.
-                </p>
-            </div>
-            <div class="overflow-x-auto rounded-lg border border-slate-800">
-                <table class="w-full">
-                    <thead class="bg-slate-900">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">ADDRESS</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">BUYER</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">PRICE</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">SOLD</th>
+
+            <!-- API Data section (when available) -->
+            <div class="border-t border-slate-800 pt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-400">CACHED SALES DATA</h3>
+                        <p class="text-xs text-slate-500 mt-1" id="sales-source">Automatically updates when API is available</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="filterSales('all')" class="sales-filter-btn px-3 py-1.5 text-xs rounded-lg bg-amber-600 text-white" data-sales-filter="all">All</button>
+                        <button onclick="filterSales('llc')" class="sales-filter-btn px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400" data-sales-filter="llc">LLC Only</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-slate-800">
+                    <table class="w-full">
+                        <thead class="bg-slate-900">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">ADDRESS</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">BUYER</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">PRICE</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">SOLD</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">BEDS/BATHS</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400">FLAGS</th>
                         </tr>
