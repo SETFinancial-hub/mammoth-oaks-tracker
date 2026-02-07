@@ -1115,10 +1115,17 @@
                 `;
                 resultsContainer.classList.remove('hidden');
             } else {
+                // Check if they searched for a watched developer
+                const isWatchedDev = WATCHED_DEVS.some(d => d.toLowerCase().includes(q) || q.includes(d.toLowerCase()));
+                const watchedMsg = isWatchedDev
+                    ? `<p class="text-emerald-400 text-sm mb-2">✓ "${query}" is on your watched list - no active petitions right now (good news!)</p>`
+                    : '';
+
                 resultsContainer.innerHTML = `
                     <div class="text-center py-4">
-                        <p class="text-slate-400 mb-2">No rezonings found for "${query}"</p>
-                        <p class="text-xs text-slate-500">Try searching by street name, petition number (e.g., "2025-137"), or developer name</p>
+                        ${watchedMsg}
+                        <p class="text-slate-400 mb-2">${isWatchedDev ? 'This developer has no active rezoning petitions in Charlotte.' : `No rezonings found for "${query}"`}</p>
+                        <p class="text-xs text-slate-500">Try: "Blue Azalea", "Hines", "Northway", "Sharon View", or a petition # like "2025-137"</p>
                     </div>
                 `;
                 resultsContainer.classList.remove('hidden');
