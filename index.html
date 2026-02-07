@@ -32,8 +32,8 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button onclick="refreshAllData()" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-sm">
-                        <i data-lucide="refresh-cw" class="w-4 h-4" id="refresh-icon"></i>
+                    <button id="refresh-btn" onclick="refreshAllData()" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-sm">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                         Refresh
                     </button>
                     <div class="text-xs text-slate-500" id="last-updated">Loading...</div>
@@ -1451,14 +1451,25 @@
         // MAIN
         // ============================================
 
+        function setSpinner(spinning) {
+            // Query fresh every time - Lucide replaces <i> elements with <svg>,
+            // so cached references go stale after createIcons() calls
+            const btn = document.getElementById('refresh-btn');
+            if (!btn) return;
+            const icon = btn.querySelector('svg, i');
+            if (icon) {
+                if (spinning) icon.classList.add('animate-spin');
+                else icon.classList.remove('animate-spin');
+            }
+        }
+
         async function refreshAllData() {
-            const refreshIcon = document.getElementById('refresh-icon');
-            refreshIcon.classList.add('animate-spin');
+            setSpinner(true);
             hideError();
 
             // Safety timeout - spinner ALWAYS stops after 30s no matter what
             const spinnerTimeout = setTimeout(() => {
-                refreshIcon.classList.remove('animate-spin');
+                setSpinner(false);
                 console.warn('Safety timeout: spinner stopped after 30s');
             }, 30000);
 
@@ -1535,7 +1546,7 @@
                 showError(error.message);
             } finally {
                 clearTimeout(spinnerTimeout);
-                refreshIcon.classList.remove('animate-spin');
+                setSpinner(false);
             }
         }
 
